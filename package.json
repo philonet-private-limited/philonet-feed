@@ -1,0 +1,10 @@
+{
+  "name": "philonet-feed",
+  "version": "0.1.0",
+  "description": "The ranking, assembly and resurfacing rules behind the Philonet feed.",
+  "license": "Apache-2.0",
+  "main": "src/index.js",
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node --test tests/*.test.js" },
+  "files": ["src", "docs", "LICENSE", "NOTICE", "README.md"]
+}
