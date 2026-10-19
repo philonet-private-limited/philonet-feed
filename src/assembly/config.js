@@ -32,6 +32,15 @@ module.exports = {
   /** One explore card in roughly every N. */
   EXPLORE_EVERY: 7,
 
+  /**
+   * A new viewer's opening (newViewer.js): over their first NEW_VIEWER_WINDOW thoughts, this share are on a topic
+   * they declared and this share are conversations that already have replies. Targets, not guarantees: when too few
+   * cards qualify the rest fill in. 0 turns one off (FEED_NEW_VIEWER_INTEREST_FLOOR, FEED_NEW_VIEWER_REPLY_QUOTA).
+   */
+  NEW_VIEWER_INTEREST_FLOOR: num('FEED_NEW_VIEWER_INTEREST_FLOOR', 0.8),
+  NEW_VIEWER_REPLY_QUOTA: num('FEED_NEW_VIEWER_REPLY_QUOTA', 0.8),
+  NEW_VIEWER_WINDOW: num('FEED_NEW_VIEWER_WINDOW', 30),
+
   /** Extra cards (curiosity, invite, topic, identity): per page, where they prefer to land, spacing. */
   /**
    * Friend news (a friend's identity card, a friend's milestone, a friend on a topic) is time-sensitive and shown

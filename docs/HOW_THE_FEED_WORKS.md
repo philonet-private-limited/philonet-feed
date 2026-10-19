@@ -15,6 +15,7 @@ Every eligible thought is scored for the viewer:
 
 ```
 score = (0.55 × relevance + 0.45 × value) × freshness × novelty × recency × unseen-new boost
+        × reply prior × referrer lift            (the last two apply to new viewers only, section 2b)
 ```
 
 (`src/scoring/config.js`, `src/scoring/score.js`)
@@ -52,6 +53,31 @@ bookmark ≈ 3, following a topic ≈ 20, "not interested in this topic" ≈ −
 (30-day half-life) for settled taste and a short one (3-day) for what they are into now, blended 55/45. Declared
 interests are a prior whose weight shrinks as real activity grows, so a new account runs on what it said it likes and a
 heavy reader on what it did. Muted authors are scored down to a tenth.
+
+## 2b. New viewers
+
+(`src/scoring/affinity.js`, `src/scoring/score.js`, `src/assembly/newViewer.js`)
+
+A viewer with fewer than 5 qualifying reads (30 seconds or more each) has no taste to rank by yet, so the first
+impression is arranged on purpose rather than left to the score. This is the "new viewer" state; it ends by itself
+once they have read five things.
+
+- **Declared interests count at once.** They are the prior behind taste (section 2) and must be read fresh on every
+  request, not from a profile cached earlier: a new viewer saves them seconds before their first feed, and a stale
+  profile would score the whole first page as if they had declared nothing.
+- **Reply prior.** A thought nobody has answered is a weak first impression and a live thread is a strong one, so a new
+  viewer's score is multiplied by 0.75 for no replies, 1.15 for one, 1.25 for two and 1.35 for three or more.
+- **Referrer lift.** The person whose invite code the viewer joined with is a known face: while the viewer is new, that
+  person's thoughts score ×1.2. The caller sets `profile.referrerId` only while the referrer is active (the reference
+  uses "posted a thought in the last 21 days"), so a lapsed referrer has no effect.
+- **The opening.** Over the first 30 thoughts, thoughts on a topic the viewer declared and thoughts that are already
+  conversations (they have replies, or they are the referrer's own) are boosted to the front. Each slot takes the
+  best-scoring card that helps whichever of the two is further behind; when no card can, the best card overall, so the
+  list is never shortened. Cards keep their score order inside each group, friend-triggered cards and non-plain cards
+  are not moved, and after 30 thoughts the ordinary order resumes. Pass `newViewer: true` to `assemble`.
+
+The hard layout rules (section 4) still apply on top, so the boost is a target: an author cap or an article clash can
+occasionally force a card that misses it.
 
 ## 3. Showing things once: the seen ledger
 
@@ -127,13 +153,6 @@ so counts, ranking and activity are unchanged by there being five. The kind is e
 engagement and no recorded kind has the default, insightful. The feed shows one count and the viewer's own reaction;
 who reacted with what is one tap away.
 
-## What is not in this repository
+## What comes next
 
-This repository is the rules. It deliberately leaves out the parts that depend on Philonet's database and
-infrastructure, and the parts that exist to defend the platform against abuse:
-
-- **Candidate retrieval**: the queries that fetch thoughts, reads, friends and reactions from a store.
-- **Verification, boosts and moderation**: how reading expertise and verification are earned, and the tools that
-  keep spam and manipulation out. Publishing exact thresholds there would only help people game them.
-- **Rollout and operations**: who gets which version, kill switches, timeouts, caches and the push or notification
-  pipeline.
+The next phase, "critical mass", is tracked in [TODO](TODO.md): semantic personalization and learning from outcomes.

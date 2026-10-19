@@ -33,6 +33,7 @@
 
 const C = require('./config');
 const { sampleOrder, seededRandom, hashSeed } = require('./layout');
+const { applyNewViewerOrder } = require('./newViewer');
 
 const isThought = (c) => !!c && c.kind === 'thought';
 
@@ -65,6 +66,10 @@ function options(over = {}) {
     socialTailMax: C.SOCIAL_TAIL_MAX,
     socialTailKinds: C.SOCIAL_TAIL_KINDS,
     pickupMax: C.PICKUP_MAX,
+    // New viewers only (assemble's `newViewer` flag turns these on): see newViewer.js.
+    replyQuota: 0,
+    interestFloor: 0,
+    newViewerWindow: C.NEW_VIEWER_WINDOW,
     ...over,
   };
 }
@@ -82,7 +87,11 @@ function buildBase({ thoughts, friends, suggestion, pinned, rand, o }) {
   const leadSet = new Set(lead);
   // A friend-triggered card past the lead cap is an ordinary card from here on.
   const rest = eligible.filter((c) => !leadSet.has(c)).map((c) => (c.priority > 0 ? { ...c, priority: 0 } : c));
-  const ordered = [...lead, ...sampleOrder(rest, rand)];
+  const sampled = sampleOrder(rest, rand);
+  const arranged = (o.replyQuota > 0 || o.interestFloor > 0)
+    ? applyNewViewerOrder(sampled, { replyRatio: o.replyQuota, interestRatio: o.interestFloor, window: o.newViewerWindow })
+    : sampled;
+  const ordered = [...lead, ...arranged];
   const friendOrder = [...friends].sort((a, b) => b.score - a.score);
 
   const used = new Set();
@@ -324,13 +333,20 @@ function buildPickup(pickup, claimedArticles, o) {
  * @param pickup      [{ key, kind, article_id, author_id, label, ... }] already ordered
  * @param pinned      the viewer's own new thought, placed first
  * @param lastRead    the AI question on the article the viewer read last, placed in the top three (marked last_read)
+ * @param newViewer   true while the viewer has too little reading to have a taste (affinity.isNewViewer): the opening is
+ *                    arranged by newViewer.js. Thoughts then carry `replies`, `on_interest` and, for the person who
+ *                    invited the viewer, `referrer: true` (scoreThought returns `onInterest` and `referrer`).
  * @returns { items, exhausted, caught_up_at }
  *   items carry `section` ('main' | 'header' | 'pickup'), `page`, and `extra: true` on extra cards.
  */
 function assemble({
   thoughts = [], friends = [], suggestion = null, extras = [], pickup = [], recycle = [], pinned = null, lastRead = null, rand, options: over,
+  newViewer = false,
 }) {
-  const o = options(over);
+  const o = options({
+    ...(newViewer ? { replyQuota: C.NEW_VIEWER_REPLY_QUOTA, interestFloor: C.NEW_VIEWER_INTEREST_FLOOR } : {}),
+    ...over,
+  });
   const { placed, exhausted } = buildBase({ thoughts, friends, suggestion, pinned, rand, o: { ...o, thoughtPair: !!lastRead } });
   const main = injectExtras(placed, extras, o, lastRead).map((c) => ({ ...c, section: 'main' }));
   // Only after a regular thought (or on an empty list): a tail card must not touch a spotlight, a question or another extra.

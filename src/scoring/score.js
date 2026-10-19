@@ -250,6 +250,22 @@ function relevanceParts(t, profile) {
 }
 
 /**
+ * A new viewer (profile.newViewer) is better served by a live conversation than by a thought nobody has answered.
+ * Returns the multiplier for this thought's reply count, 1 for everyone else.
+ */
+function replyPrior(t, profile) {
+  if (!profile.newViewer || !C.NEW_VIEWER_REPLY_PRIOR_ON) return 1;
+  const f = C.NEW_VIEWER_REPLY_FACTORS;
+  return f[Math.min(Math.max(0, Math.floor(t.replies || 0)), f.length - 1)];
+}
+
+/** A new viewer's referrer (profile.referrerId, set by the caller only while the referrer is active) gets a small lift. */
+function referrerPrior(t, profile) {
+  return profile.newViewer && profile.referrerId && String(t.author_id) === String(profile.referrerId)
+    ? C.NEW_VIEWER_REFERRER_BOOST : 1;
+}
+
+/**
  * Scores one thought for one viewer. Returns null when the thought must not be
  * shown to them at all; otherwise the score and every term that produced it.
  */
@@ -288,12 +304,17 @@ function scoreThought(t, { profile, readState, exposure, stats, now, triggers = 
   // "Not interested in this author": their thoughts are scored down, not hidden, so a friend's own reply to the
   // viewer (a trigger) still gets through.
   const muted = !triggered && profile.mutedAuthors && profile.mutedAuthors.has(String(t.author_id)) ? C.MUTED_AUTHOR_FACTOR : 1;
-  const score = (C.W_RELEVANCE * relevance + C.W_VALUE * val) * fresh * nov * recency * unseenNew * muted;
+  const replyBoost = triggered ? 1 : replyPrior(t, profile);
+  const referrerBoost = triggered ? 1 : referrerPrior(t, profile);
+  const score = (C.W_RELEVANCE * relevance + C.W_VALUE * val) * fresh * nov * recency * unseenNew * muted
+    * replyBoost * referrerBoost;
 
   return {
     score,
     kind: kindOf(t),
     explore: rel.topic < 0.15 && val >= 0.5,
+    referrer: referrerBoost !== 1,
+    onInterest: rel.topic >= C.NEW_VIEWER_INTEREST_MIN,
     revived: state.revived,
     tier: state.tier,
     trigger: triggered ? trig : null,
@@ -305,6 +326,8 @@ function scoreThought(t, { profile, readState, exposure, stats, now, triggers = 
       author: +rel.author.toFixed(4), social: +rel.social.toFixed(4),
       value: +val.toFixed(4), freshness: +fresh.toFixed(4), novelty: +nov.toFixed(4),
       recency: +recency.toFixed(4), unseen_new: +unseenNew.toFixed(4),
+      ...(replyBoost !== 1 ? { reply_prior: +replyBoost.toFixed(4), replies: t.replies || 0 } : {}),
+      ...(referrerBoost !== 1 ? { referrer_prior: +referrerBoost.toFixed(4) } : {}),
       // For revived cards, the two times the decision compared — so a reply
       // that only LOOKS newer (a timezone mismatch between reply timestamps and
       // serve timestamps) is visible in ?debug=1 instead of guessed at.
@@ -319,5 +342,5 @@ function scoreThought(t, { profile, readState, exposure, stats, now, triggers = 
 
 module.exports = {
   kindOf, halfLifeFor, viewerState, freshness, novelty, inWindow, shelfExpired, recencyBoost, unseenNewBoost, qualityPrior,
-  engagementRate, corpusStats, value, relevanceParts, scoreThought,
+  engagementRate, corpusStats, value, relevanceParts, replyPrior, referrerPrior, scoreThought,
 };

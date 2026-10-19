@@ -229,6 +229,26 @@ const DECLARED_PRIOR_HOURS = 3;
 // How long a newly published thought by the viewer stays pinned to the top.
 const OWN_POST_PIN_MINUTES = 10;
 
+// ── New viewers ─────────────────────────────────────────────────────────────
+// A viewer with fewer than NEW_VIEWER_MAX_READS qualifying reads (affinity.isNewViewer) has no taste to rank by yet.
+// For them a thought nobody has answered is a weak first impression and one with a live thread is a strong one, so
+// the score is multiplied by the factor for the thought's reply count (the last entry covers that many replies or
+// more). Off for everyone else, and off entirely with FEED_NEW_VIEWER_REPLY_PRIOR=0.
+const NEW_VIEWER_MAX_READS = num('FEED_NEW_VIEWER_MAX_READS', 5);
+const NEW_VIEWER_REPLY_PRIOR_ON = num('FEED_NEW_VIEWER_REPLY_PRIOR', 1) !== 0;
+const NEW_VIEWER_REPLY_FACTORS = [
+  num('FEED_NEW_VIEWER_REPLY_0', 0.75),
+  num('FEED_NEW_VIEWER_REPLY_1', 1.15),
+  num('FEED_NEW_VIEWER_REPLY_2', 1.25),
+  num('FEED_NEW_VIEWER_REPLY_3', 1.35),
+];
+// The person whose invite code a new viewer joined with is a known face: while the viewer is new, that person's
+// thoughts score this much higher, but only if the caller says the referrer is active (profile.referrerId is set
+// only then; the reference uses "posted a thought in the last 21 days"). Off with FEED_NEW_VIEWER_REFERRER_BOOST=1.
+const NEW_VIEWER_REFERRER_BOOST = num('FEED_NEW_VIEWER_REFERRER_BOOST', 1.2);
+// A thought counts as "on interest" for the opening (assembly/newViewer.js) when its topic affinity is at least this.
+const NEW_VIEWER_INTEREST_MIN = num('FEED_NEW_VIEWER_INTEREST_MIN', 0.5);
+
 module.exports = {
   W_RELEVANCE, W_VALUE, W_TOPIC, W_AUTHOR, W_SOCIAL,
   ENGAGEMENT_WEIGHTS, ENGAGEMENT_PRIOR, READ_MS,
@@ -245,4 +265,6 @@ module.exports = {
   SUGGESTION_SLOT, SUGGESTION_EARLIEST_SLOT,
   AFFINITY_HALF_LIFE_DAYS, DECLARED_PRIOR_HOURS, OWN_POST_PIN_MINUTES,
   SIGNAL_MINUTES, SIGNAL_DAYS, AUTHOR_SIGNAL_WEIGHTS, MUTED_AUTHOR_FACTOR, SHORT_HALF_LIFE_DAYS, SHORT_BLEND,
+  NEW_VIEWER_MAX_READS, NEW_VIEWER_REPLY_PRIOR_ON, NEW_VIEWER_REPLY_FACTORS, NEW_VIEWER_REFERRER_BOOST,
+  NEW_VIEWER_INTEREST_MIN,
 };

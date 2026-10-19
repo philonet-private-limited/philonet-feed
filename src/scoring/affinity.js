@@ -87,4 +87,17 @@ function topicAffinity(reads, declared, resolve, now, events = []) {
   return { topics: blended, readHours: hours };
 }
 
-module.exports = { topicAffinity, authorAffinity };
+/**
+ * True while the viewer has too little reading to have a taste yet: fewer than NEW_VIEWER_MAX_READS reads of at
+ * least READ_MS. Set `profile.newViewer` from this; the new-viewer rules (a reply prior and a referrer lift in
+ * scoring, the interest floor and reply quota in assembly) key off it.
+ *
+ * Declared interests must be read fresh on every request, not from a profile cached earlier: a new viewer saves them
+ * seconds before their first feed, and a stale profile would score that whole first page as if they had declared
+ * nothing.
+ */
+function isNewViewer(qualifyingReads) {
+  return C.NEW_VIEWER_REPLY_PRIOR_ON && Number(qualifyingReads) < C.NEW_VIEWER_MAX_READS;
+}
+
+module.exports = { topicAffinity, authorAffinity, isNewViewer };
